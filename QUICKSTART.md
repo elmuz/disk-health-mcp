@@ -140,11 +140,13 @@ Self-tests are **safe** — they don't modify data on the drive:
 ```text
 src/disk_health_mcp/
 ├── server.py                # MCP server with 11 diagnostic tools
-├── smart_parser.py          # SMART parser with manufacturer normalization
-├── disk_metrics.py          # Data source collector (host/Prometheus/InfluxDB)
+└── smart_parser.py          # SMART parser with manufacturer normalization
+
+server-management-lib (dependency):
 ├── security.py              # Command whitelist + device validation
 ├── config.py                # Config loader
-└── ssh_manager.py           # SSH connection manager
+├── ssh_manager.py           # SSH connection manager
+└── http_clients.py          # InfluxDB/Prometheus clients
 
 tests/
 ├── test_security.py         # Security validation tests

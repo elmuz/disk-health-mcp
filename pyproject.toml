@@ -14,6 +14,8 @@ dependencies = [
 dev = [
     # Testing
     "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
     # Linting
     "ruff>=0.9.0",
     # Type checking
@@ -38,6 +40,22 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "integration: marks integration tests that require real SSH connection",
+]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["disk_health_mcp"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 45
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "async def main",
+    "await mcp.run_stdio_async",
 ]
 
 [tool.ruff]

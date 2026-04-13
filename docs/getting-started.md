@@ -133,6 +133,7 @@ asyncio.run(test())
 | Qwen doesn't see tools | Restart Qwen Code, check `.qwen/settings.json` |
 | SSH connection fails | Test manually: `ssh -i ~/.ssh/id_ed25519 user@host` |
 | SMART data returns empty | Drive may not support SMART: `smartctl -i /dev/sdX` |
+| smartctl/nvme-cli permission errors | These tools require root. Either: configure InfluxDB/Telegraf (no sudo needed), or grant passwordless sudo for smartctl |
 | nvme commands fail | `nvme-cli` not installed: `apt install nvme-cli` |
 | ZFS commands fail | ZFS not installed on target host |
 | Tests failing | `uv run pytest tests/ -v --tb=short` for details |

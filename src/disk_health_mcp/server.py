@@ -191,7 +191,7 @@ async def _get_influxdb_latest_attributes(device: str) -> list[dict] | None:
     return None
 
 
-async def _format_influxdb_device_health(row: dict) -> str:
+def _format_influxdb_device_health(row: dict) -> str:
     """Format an InfluxDB smart_device row into a human-readable health report."""
     device = row.get("device", "unknown")
     model = row.get("model", "unknown")
@@ -287,7 +287,7 @@ async def get_disk_health(device: str) -> str:
     # Priority 1: Try InfluxDB (no root needed)
     influx_data = await _get_influxdb_latest_device(device)
     if influx_data:
-        return await _format_influxdb_device_health(influx_data)
+        return _format_influxdb_device_health(influx_data)
 
     # Priority 2: Fall back to smartctl via SSH
     if not config.get("host", {}).get("enabled", False):
@@ -433,7 +433,7 @@ async def get_nvme_health(device: str) -> str:
     # Priority 1: Try InfluxDB first
     influx_data = await _get_influxdb_latest_device(influx_device)
     if influx_data:
-        return await _format_influxdb_device_health(influx_data)
+        return _format_influxdb_device_health(influx_data)
 
     # Priority 2: Fall back to nvme-cli
     if not config.get("host", {}).get("enabled", False):

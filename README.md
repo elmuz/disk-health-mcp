@@ -8,15 +8,15 @@ A disk health diagnostics MCP server. Analyzes SMART, NVMe, ZFS, RAID, and I/O m
 **Design principle:** Whitelist diagnostic operations, normalize across manufacturers, provide actionable health insights.
 
 ```text
-┌───────────────┐    ┌──────────────────────┐    ┌───────────────────────┐    ┌──────────────┐
-│  AI Assistant │───▶│   disk-health-mcp    │───▶│ server-management-lib │───▶│  SSH to Host │
-│  (Qwen Code)  │◀───│  • SMART parser      │    │  • SecurityValidator │    │              │
-└───────────────┘    │  • Severity assess   │    │  • SSHManager        │    │  • smartctl  │
-                     │  • Health scoring    │    │  • InfluxDBClient    │    │  • nvme-cli  │
-                     │  • MCP tool handlers │    │  • PrometheusClient  │    │  • zpool     │
-                     └──────────────────────┘    │  • config loader     │    │  • mdadm     │
-                                                 └───────────────────────┘    │  • iostat    │
-                                                                              └──────────────┘
+┌───────────────┐    ┌────────────────────────┐    ┌───────────────────────┐    ┌──────────────┐
+│  AI Assistant │───▶│    disk-health-mcp     │───▶│ server-management-lib │───▶│  SSH to Host │
+│  (Qwen Code)  │◀───│  • SMART parser        │    │  • SecurityValidator  │    │              │
+└───────────────┘    │  • Severity assessment │    │  • SSHManager         │    │  • smartctl  │
+                     │  • Health scoring      │    │  • InfluxDBClient     │    │  • nvme-cli  │
+                     │  • InfluxDB-first prio │    │  • PrometheusClient   │    │  • zpool     │
+                     │  • MCP tool handlers   │    │  • config loader      │    │  • mdadm     │
+                     └────────────────────────┘    └───────────────────────┘    │  • iostat    │
+                                                                                └──────────────┘
 ```
 
 ## Quick Start
@@ -75,7 +75,7 @@ disk-health-mcp contributes the disk-specific logic: SMART parsing, manufacturer
 ## Development
 
 ```bash
-uv run ruff check . && uv run ruff format . && uv run ty check && uv run pytest tests/ -v
+uv run ruff check . && uv run ruff format --check . && uv run ty check && uv run pymarkdown -c .pymarkdown scan . && uv run python scripts/check_md_links.py && uv run pytest tests/ --cov=disk_health_mcp --cov-report=term-missing --tb=short
 ```
 
 See [Development](docs/development.md) for project structure and how to add new tools safely.

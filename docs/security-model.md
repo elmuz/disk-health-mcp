@@ -110,7 +110,8 @@ Five reasons:
 
 When adding a new diagnostic tool:
 
-1. Add the command prefix to `SAFE_COMMAND_PREFIXES` in `security.py`
+1. Add the command prefix to `SAFE_COMMAND_PREFIXES` in server-management-lib
 2. Validate all inputs (device names, test types, etc.)
 3. Write security tests first (TDD)
 4. Document the tool in `docs/tools.md`
+5. Prefer existing telemetry (InfluxDB/Prometheus) before SSH fallback

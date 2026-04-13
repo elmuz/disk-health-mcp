@@ -38,7 +38,11 @@ Command: `lsblk -d -o NAME,MODEL,SERIAL,SIZE,TYPE,TRAN --json`
 
 ### `get_disk_health(device)`
 
-The primary health analysis tool. Parses SMART data with:
+The primary health analysis tool. **Data source priority:**
+1. **InfluxDB** (Telegraf smart plugin) — no root required
+2. **smartctl via SSH** — fallback when InfluxDB unavailable
+
+Parses SMART data with:
 
 - **Manufacturer detection** — Identifies Seagate, WD, Samsung, Toshiba, Intel
 - **Seagate normalization** — Decodes 48-bit composite raw values
@@ -46,17 +50,21 @@ The primary health analysis tool. Parses SMART data with:
 - **Health score** — 0-100 normalized score
 - **Human-readable summary** — Flags issues with emoji indicators
 
-Command: `smartctl -j -a /dev/{device}` (falls back to text parsing)
+Primary command: `smartctl -j -a /dev/{device}` (falls back to text parsing)
 
 ### `get_smart_attributes(device)`
 
 Returns a formatted table of all SMART attributes with severity annotations.
+
+**Data source priority:** InfluxDB → smartctl fallback
 
 Command: `smartctl -j -a /dev/{device}`
 
 ### `get_nvme_health(device)`
 
 Gets NVMe SMART health information.
+
+**Data source priority:** InfluxDB → nvme-cli fallback
 
 Command: `nvme smart-log /dev/{device}`
 

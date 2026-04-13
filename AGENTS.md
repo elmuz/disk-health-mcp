@@ -46,8 +46,17 @@ uv run ruff format .
 # Type checking
 uv run ty check
 
+# Markdown linting
+uv run pymarkdown -c .pymarkdown scan .
+
+# Fix markdown issues
+uv run pymarkdown -c .pymarkdown fix .
+
+# Link checking
+uv run python scripts/check_md_links.py
+
 # Run all checks (what pre-commit does)
-uv run ruff check . && uv run ruff format . && uv run ty check && uv run pytest tests/ -v
+uv run ruff check . && uv run ruff format --check . && uv run ty check && uv run pymarkdown -c .pymarkdown scan . && uv run python scripts/check_md_links.py && uv run pytest tests/ --cov=disk_health_mcp --cov-report=term-missing --tb=short
 ```
 
 ### Pre-commit Hooks
@@ -57,6 +66,8 @@ Pre-commit hooks run automatically on `git commit`:
 - **ruff**: Linting and formatting
 - **ty**: Type checking
 - **pytest**: Run all tests
+- **pymarkdown**: Markdown linting
+- **check-md-links**: Markdown link checker
 
 To run manually:
 
@@ -103,12 +114,14 @@ Already configured in `.qwen/settings.json`. Just restart Qwen Code!
 
 ## Available Tools
 
+All health tools prioritize **InfluxDB telemetry first** (no root needed), falling back to smartctl via SSH.
+
 | Tool | Purpose |
 |------|---------|
 | `list_disks` | List all storage devices |
-| `get_disk_health` | Full health analysis with severity |
-| `get_smart_attributes` | Raw SMART attributes table |
-| `get_nvme_health` | NVMe SMART health log |
+| `get_disk_health` | Full health analysis (InfluxDB → smartctl) |
+| `get_smart_attributes` | Raw SMART attributes table (InfluxDB → smartctl) |
+| `get_nvme_health` | NVMe SMART health log (InfluxDB → nvme-cli) |
 | `run_smart_test` | Trigger SMART self-test |
 | `get_zfs_status` | ZFS pool health |
 | `get_raid_status` | mdadm RAID status |
@@ -195,6 +208,15 @@ All tools MUST:
 4. NOT expose sensitive data
 5. NOT allow command injection
 
+### Data Source Priority
+
+When reading disk health data, prefer existing telemetry sources first:
+1. **InfluxDB** (Telegraf smart plugin) — no root needed
+2. **Prometheus** (node_exporter smartmon) — no root needed
+3. **smartctl/nvme-cli via SSH** — fallback, requires sudo
+
+Add helpful hints when SSH fallback fails (see `_enrich_error_output()`).
+
 ### Pre-commit Verification
 
 **Every time you finalize a feature or bugfix, run the full check suite:**
@@ -213,8 +235,22 @@ This runs all pre-commit hooks in order:
 | Markdown | `pymarkdown scan` | Formatting, heading duplicates, code block languages |
 | Links | `check_md_links.py` | Broken relative links and anchors |
 | Tests | `pytest` | Regressions, new test coverage |
+| Coverage | `pytest --cov` | Minimum coverage threshold (fail_under in pyproject.toml) |
 
 **All must pass before committing.** If any fail, fix the issues first — never commit on a broken state.
+
+### Documentation Consistency
+
+**Before committing, verify that documentation reflects code changes:**
+
+- `README.md` — Architecture diagram, tool list, and development commands must match current state
+- `docs/tools.md` — Tool descriptions and data source priorities must match implementation
+- `docs/development.md` — Code examples must use current variable names (`ssh_manager`, not `collector`)
+- `docs/getting-started.md` — Troubleshooting table must cover new error scenarios
+- `AGENTS.md` — This file serves as the source of truth for project rules and conventions
+- `QUICKSTART.md` — File structure must not list files that live in dependencies (server-management-lib)
+
+If code behavior, available tools, or error messages change, update the relevant docs as part of the same commit. This is part of the pre-commit checklist, not a separate step.
 
 ## License
 

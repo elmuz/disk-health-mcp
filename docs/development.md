@@ -69,7 +69,7 @@ uv run pymarkdown -c .pymarkdown fix .
 uv run python scripts/check_md_links.py
 
 # Run all checks (what pre-commit does)
-uv run ruff check . && uv run ruff format . && uv run ty check && uv run pytest tests/ -v
+uv run ruff check . && uv run ruff format --check . && uv run ty check && uv run pymarkdown -c .pymarkdown scan . && uv run python scripts/check_md_links.py && uv run pytest tests/ --cov=disk_health_mcp --cov-report=term-missing --tb=short
 ```
 
 ## Pre-commit Hooks
@@ -79,6 +79,7 @@ Pre-commit hooks run automatically on `git commit`:
 - **ruff**: Linting and formatting (from astral-sh/ruff-pre-commit)
 - **ty**: Type checking (local hook)
 - **pytest**: Run all tests (local hook)
+- **coverage**: Coverage threshold enforcement (local hook)
 - **pymarkdown**: Markdown linting (local hook)
 - **check-md-links**: Markdown link checker (local hook)
 
@@ -103,10 +104,11 @@ async def my_new_tool(device: str) -> str:
     if not security.is_command_safe(cmd):
         return "❌ Command not in whitelist"
 
-    await collector.connect_ssh()
-    result = await collector._get_ssh_manager().execute_safe_command(cmd)
-    await collector.disconnect_ssh()
-    return result
+    try:
+        await ssh_manager.connect()
+        return await ssh_manager.execute_safe_command(cmd)
+    finally:
+        await ssh_manager.disconnect()
 ```
 
 ### Security Requirements
@@ -114,10 +116,20 @@ async def my_new_tool(device: str) -> str:
 All tools MUST:
 1. Validate device names with `security.validate_device_name()`
 2. Use whitelisted commands via `security.is_command_safe()`
-3. Use `collector` methods (never raw SSH execution)
+3. Use `ssh_manager` for SSH execution (never raw SSH execution)
 4. NOT expose sensitive data
 5. NOT allow command injection
 6. Connect/disconnect SSH properly (use try/finally)
+
+### Data Source Priority
+
+When reading disk health data, prefer existing telemetry sources first:
+1. **InfluxDB** (Telegraf smart plugin) — no root needed
+2. **Prometheus** (node_exporter smartmon) — no root needed
+3. **smartctl/nvme-cli via SSH** — fallback, requires sudo
+
+This lets agents diagnose disks without elevated privileges.
+Add helpful hints when SSH fallback fails (see `_enrich_error_output()`).
 
 ## TDD Approach for Security Tests
 
