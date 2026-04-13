@@ -252,3 +252,53 @@ class TestToolRegistration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+# ============================================================================
+# Error Enrichment Tests
+# ============================================================================
+
+
+class TestErrorEnrichment:
+    """Test smartctl/nvme privilege hint enrichment."""
+
+    def test_privilege_error_gets_hint(self):
+        """Permission denied errors should include sudo hint."""
+        from disk_health_mcp.server import _enrich_error_output
+
+        output = "smartctl: /dev/sda: Permission denied"
+        result = _enrich_error_output(output)
+        assert "require root privileges" in result
+        assert "sudo" in result.lower()
+
+    def test_command_not_found_gets_hint(self):
+        """Command not found should include installation hint."""
+        from disk_health_mcp.server import _enrich_error_output
+
+        output = "bash: smartctl: command not found"
+        result = _enrich_error_output(output)
+        assert "Hint" in result
+
+    def test_unable_to_open_gets_hint(self):
+        """Unable to open device should include privilege hint."""
+        from disk_health_mcp.server import _enrich_error_output
+
+        output = "Unable to open /dev/sda: Operation not permitted"
+        result = _enrich_error_output(output)
+        assert "require root privileges" in result
+
+    def test_clean_output_unchanged(self):
+        """Normal output should not be modified."""
+        from disk_health_mcp.server import _enrich_error_output
+
+        output = "smartctl 7.4, JSON output follows"
+        result = _enrich_error_output(output)
+        assert result == output
+
+    def test_access_denied_gets_hint(self):
+        """Access denied should include privilege hint."""
+        from disk_health_mcp.server import _enrich_error_output
+
+        output = "NVMe: access denied for /dev/nvme0n1"
+        result = _enrich_error_output(output)
+        assert "require root privileges" in result
