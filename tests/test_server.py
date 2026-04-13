@@ -157,3 +157,111 @@ class TestListDisks:
 
         result = await list_disks()
         assert "blockdevices" in result
+
+
+# ============================================================================
+# InfluxDB Smart Attributes (SSD wear context)
+# ============================================================================
+
+
+class TestInfluxDBSmartAttributes:
+    """Test get_smart_attributes via InfluxDB with SSD wear context."""
+
+    async def test_ssd_wear_summary_shown(self, mock_config, mock_security):
+        """SSD with wear data should show SSD Wear Summary."""
+        import json
+        from unittest.mock import AsyncMock, patch
+
+        influx_device_result = {
+            "device": "sdd",
+            "model": "CT480BX500SSD1",
+            "health_ok": True,
+            "temp_c": 29,
+            "power_on_hours": 3945,
+            "power_cycle_count": 21,
+            "percent_lifetime_remain": 97,
+            "percentage_used": 3,
+            "media_errors": 0,
+            "available_spare": 100,
+        }
+        influx_attrs_result = [
+            {"name": "Percent_Lifetime_Remain", "raw_value": 97, "device": "sdd"},
+            {"name": "Wear_Leveling_Count", "raw_value": 50, "device": "sdd"},
+            {"name": "Reallocated_Sector_Ct", "raw_value": 0, "device": "sdd"},
+        ]
+
+        mock_client = AsyncMock()
+
+        async def fake_query(query, database=None):
+            if "smart_device" in query:
+                return f"✅ Query successful\n\n{json.dumps([influx_device_result])}"
+            if "smart_attribute" in query:
+                return f"✅ Query successful\n\n{json.dumps(influx_attrs_result)}"
+            return "✅ Query successful\n\n[]"
+
+        mock_client.query = fake_query
+
+        from disk_health_mcp.server import get_smart_attributes
+
+        with (
+            patch("disk_health_mcp.server.config", mock_config),
+            patch("disk_health_mcp.server.security", mock_security),
+            patch(
+                "disk_health_mcp.server._make_influxdb_client",
+                return_value=mock_client,
+            ),
+        ):
+            result = await get_smart_attributes("sdd")
+
+        assert "SSD Wear Summary" in result
+        assert "Life Remaining: 97%" in result
+        assert "Percentage Used: 3%" in result
+        assert "Percent_Lifetime_Remain" in result
+        assert "100=new, 0=EOL, norm" in result
+
+    async def test_ssd_end_of_life_warning(self, mock_config, mock_security):
+        """SSD at 90%+ used should show end-of-life warning."""
+        import json
+        from unittest.mock import AsyncMock, patch
+
+        influx_device_result = {
+            "device": "sdd",
+            "model": "CT480BX500SSD1",
+            "health_ok": True,
+            "percent_lifetime_remain": 5,
+            "percentage_used": 95,
+            "media_errors": 2,
+            "available_spare": 10,
+        }
+        influx_attrs_result = [
+            {"name": "Percent_Lifetime_Remain", "raw_value": 5, "device": "sdd"},
+            {"name": "Reallocated_Sector_Ct", "raw_value": 10, "device": "sdd"},
+        ]
+
+        mock_client = AsyncMock()
+
+        async def fake_query(query, database=None):
+            if "smart_device" in query:
+                return f"✅ Query successful\n\n{json.dumps([influx_device_result])}"
+            if "smart_attribute" in query:
+                return f"✅ Query successful\n\n{json.dumps(influx_attrs_result)}"
+            return "✅ Query successful\n\n[]"
+
+        mock_client.query = fake_query
+
+        from disk_health_mcp.server import get_smart_attributes
+
+        with (
+            patch("disk_health_mcp.server.config", mock_config),
+            patch("disk_health_mcp.server.security", mock_security),
+            patch(
+                "disk_health_mcp.server._make_influxdb_client",
+                return_value=mock_client,
+            ),
+        ):
+            result = await get_smart_attributes("sdd")
+
+        assert "🔴" in result  # Critical status
+        assert "Drive is near end of life" in result
+        assert "Media Errors: 2" in result
+        assert "🔴 critical" in result  # Reallocated sectors flagged

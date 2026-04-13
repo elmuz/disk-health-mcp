@@ -338,12 +338,41 @@ async def get_smart_attributes(device: str) -> str:
     # Priority 1: Try InfluxDB (no root needed)
     influx_attrs = await _get_influxdb_latest_attributes(device)
     if influx_attrs:
+        # Fetch device summary for SSD wear cross-reference
+        influx_device = await _get_influxdb_latest_device(device)
+
         lines = [
             f"SMART Attributes for {device} (via InfluxDB)",
             "",
-            f"{'Name':<30} {'Raw Value':>15} {'Severity':<10}",
-            "-" * 60,
         ]
+
+        # SSD wear summary if available
+        if influx_device:
+            pct_used = influx_device.get("percentage_used")
+            pct_life = influx_device.get("percent_lifetime_remain")
+            media_errs = influx_device.get("media_errors", 0)
+            avail_spare = influx_device.get("available_spare")
+            if pct_used is not None or pct_life is not None:
+                status = "✅"
+                if pct_used is not None and pct_used >= 90:
+                    status = "🔴"
+                elif pct_used is not None and pct_used >= 70:
+                    status = "🟡"
+                lines.append(f"{status} SSD Wear Summary:")
+                if pct_used is not None:
+                    lines.append(f"    Percentage Used: {pct_used}%")
+                if pct_life is not None:
+                    lines.append(f"    Life Remaining: {pct_life}%")
+                if media_errs and media_errs > 0:
+                    lines.append(f"    ⚠️  Media Errors: {media_errs}")
+                if avail_spare is not None:
+                    lines.append(f"    Available Spare: {avail_spare}%")
+                if pct_used is not None and pct_used >= 90:
+                    lines.append("    ⚠️  Drive is near end of life")
+                lines.append("")
+
+        lines.append(f"{'Name':<30} {'Raw Value':>15} {'Note':<35} {'Severity':<10}")
+        lines.append("-" * 95)
         for attr in influx_attrs:
             name = attr.get("name", "unknown")
             raw_val = attr.get("raw_value", 0)
@@ -364,7 +393,18 @@ async def get_smart_attributes(device: str) -> str:
                 severity = "warning"
                 icon = "🟡"
 
-            lines.append(f"{name:<30} {raw_val:>15} {icon} {severity:<8}")
+            # Add scale context for SSD wear attributes
+            note = ""
+            if name in ("Percent_Lifetime_Remain", "Media_Wearout_Indicator"):
+                note = "(100=new, 0=EOL, norm)"
+            elif name == "Percentage_Used":
+                note = "(0=new, 100=EOL)"
+            elif name == "Wear_Leveling_Count":
+                note = "(SSD wear)"
+            elif name == "Available_Reservd_Space":
+                note = "(spare blocks)"
+
+            lines.append(f"{name:<30} {raw_val:>15} {note:<35} {icon} {severity:<8}")
         return "\n".join(lines)
 
     # Priority 2: Fall back to smartctl via SSH
