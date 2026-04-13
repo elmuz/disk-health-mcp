@@ -304,7 +304,7 @@ def parse_smart_json(data: dict) -> SmartDevice:
     temperature = data.get("temperature", {})
     if isinstance(temperature, dict):
         device.temperature = temperature.get("current", 0)
-    elif isinstance(temperature, (int, float)):
+    elif isinstance(temperature, int | float):
         device.temperature = int(temperature)
 
     # Parse attributes

@@ -810,6 +810,14 @@ async def _get_full_report_via_ssh() -> str:
 
 async def main():
     """Run the MCP server."""
+    # Refresh SMART attribute database if stale (>7 days old)
+    # Falls back silently to committed copy on network failure
+    from .smartdb import refresh_if_stale
+
+    refreshed = refresh_if_stale(max_age_days=7)
+    if refreshed:
+        logger.info("SMART attribute database refreshed from upstream")
+
     logger.info("Starting Disk Health MCP...")
     logger.info(
         "Available tools: list_disks, get_disk_health, get_smart_attributes, "
